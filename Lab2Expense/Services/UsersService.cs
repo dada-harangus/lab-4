@@ -22,7 +22,7 @@ namespace Lab2Expense.Services
         UserGetModel Register(RegisterPostModel registerInfo);
         User GetCurrentUser(HttpContext httpContext);
         IEnumerable<UserGetModelWithRole> GetAll();
-        User Delete(int id);
+        User Delete(int id, User user);
         User Upsert(int id, User user, User userCurrent);
 
 
@@ -136,7 +136,7 @@ namespace Lab2Expense.Services
                 Id = user.Id,
                 Email = user.Email,
                 Username = user.Username,
-                UserRole= user.UserRole
+                UserRole = user.UserRole
             });
         }
         //public UserGetModelWithRole ChangeRole(int id, string Role)
@@ -154,15 +154,30 @@ namespace Lab2Expense.Services
         //    return UserGetModelWithRole.FromUser(user);
 
         //}
-        public User Delete(int id)
+        public User Delete(int id, User userCurrent)
         {
+
+
+
             var existing = context.Users
             .FirstOrDefault(user => user.Id == id);
             if (existing == null)
             {
                 return null;
             }
-            existing.isRemoved = true;
+
+            DateTime dateCurrent = DateTime.Now;
+            TimeSpan diferenta = dateCurrent.Subtract(userCurrent.DateAdded);
+            if ((userCurrent.UserRole == Models.UserRole.Admin || diferenta.Days > 190) && existing.UserRole != Models.UserRole.Admin)
+            {
+
+                existing.isRemoved = true;
+            }
+            if (existing.UserRole == UserRole.Admin || existing.UserRole == UserRole.UserManager)
+            {
+                existing.isRemoved = false;
+            }
+
             context.Update(existing);
             context.SaveChanges();
             return existing;
@@ -173,6 +188,7 @@ namespace Lab2Expense.Services
             var existing = context.Users.AsNoTracking().FirstOrDefault(f => f.Id == id);
             if (existing == null)
             {
+                user.Password = ComputeSha256Hash(user.Password);
                 context.
                     Users.Add(user);
                 context.SaveChanges();
@@ -182,13 +198,15 @@ namespace Lab2Expense.Services
             TimeSpan diferenta = dateCurrent.Subtract(userCurrent.DateAdded);
 
             user.Id = id;
-            if ((userCurrent.UserRole == Models.UserRole.Admin || diferenta.Days > 190 ) && existing.UserRole !=Models.UserRole.Admin)
+            if ((userCurrent.UserRole == Models.UserRole.Admin || diferenta.Days > 190) && existing.UserRole != Models.UserRole.Admin)
             {
+                user.Password = ComputeSha256Hash(user.Password);
                 context.Users.Update(user);
                 context.SaveChanges();
                 return user;
             }
             user.UserRole = existing.UserRole;
+            user.Password = ComputeSha256Hash(user.Password);
             context.Users.Update(user);
             context.SaveChanges();
             return user;

@@ -99,7 +99,8 @@ namespace Lab2Expense.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public IActionResult Delete(int id)
         {
-            var existing = _userService.Delete(id);
+            var userCurrent = _userService.GetCurrentUser(HttpContext);
+            var existing = _userService.Delete(id, userCurrent);
             if (existing == null)
             {
                 return NotFound();
